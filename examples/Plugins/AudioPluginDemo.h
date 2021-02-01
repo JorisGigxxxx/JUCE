@@ -173,6 +173,25 @@ private:
     double tailOff      = 0.0;
 };
 
+class AudioParameterFloatCustom
+    : public AudioParameterFloat
+{
+public:
+    template <typename ...Args>
+    AudioParameterFloatCustom(Args&&... inArgs)
+        : AudioParameterFloat(std::forward<Args>(inArgs)...)
+        , mCount(0)
+    {
+    }
+    
+public:
+    String getName(int maximumStringLength) const override
+    {
+        return String("RandomParam-") + String(mCount++);
+    }
+    mutable unsigned mCount;
+};
+
 //==============================================================================
 /** As the name suggest, this class does the actual audio processing. */
 class JuceDemoPluginAudioProcessor  : public AudioProcessor
@@ -182,8 +201,8 @@ public:
     JuceDemoPluginAudioProcessor()
         : AudioProcessor (getBusesProperties()),
           state (*this, nullptr, "state",
-                 { std::make_unique<AudioParameterFloat> ("gain",  "Gain",           NormalisableRange<float> (0.0f, 1.0f), 0.9f),
-                   std::make_unique<AudioParameterFloat> ("delay", "Delay Feedback", NormalisableRange<float> (0.0f, 1.0f), 0.5f) })
+                 { std::make_unique<AudioParameterFloatCustom> ("gain",  "Gain",           NormalisableRange<float> (0.0f, 1.0f), 0.9f),
+                   std::make_unique<AudioParameterFloatCustom> ("delay", "Delay Feedback", NormalisableRange<float> (0.0f, 1.0f), 0.5f) })
     {
         // Add a sub-tree to store the state of our UI
         state.state.addChild ({ "uiState", { { "width",  400 }, { "height", 200 } }, {} }, -1, nullptr);
@@ -415,7 +434,7 @@ private:
             updateTrackProperties();
 
             // start a timer which will keep our timecode display updated
-            startTimerHz (30);
+            startTimerHz (1);
         }
 
         ~JuceDemoPluginAudioProcessorEditor() override {}
@@ -423,7 +442,9 @@ private:
         //==============================================================================
         void paint (Graphics& g) override
         {
-            g.setColour (backgroundColour);
+            juce::ColourGradient gradient(juce::Colours::purple, 0, 0,
+                                          juce::Colours::chartreuse, getWidth(), getHeight(), true);
+            g.setGradientFill (gradient);
             g.fillAll();
         }
 
@@ -447,6 +468,7 @@ private:
 
         void timerCallback() override
         {
+            getProcessor().updateHostDisplay();
             updateTimecodeDisplay (getProcessor().lastPosInfo.get());
         }
 
